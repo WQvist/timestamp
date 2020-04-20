@@ -10,6 +10,7 @@ import {
 import 'react-native-gesture-handler'
 import HomeScreen from './src/HomeScreen/HomeScreen.js'
 import Settings from './src/Settings/Settings.js'
+import WifiSettings from './src/Settings/WifiSettings.js'
 import Statistics from './src/Statistics/Statistics.js'
 import {createStackNavigator} from '@react-navigation/stack'
 import { NavigationContainer } from '@react-navigation/native';
@@ -34,6 +35,10 @@ function App(){
 				<Stack.Screen
 					name="Settings"
 					component={Settings}
+				/>
+				<Stack.Screen
+					name="WifiSettings"
+					component={WifiSettings}
 				/>
 				<Stack.Screen
 					name="Statistics"

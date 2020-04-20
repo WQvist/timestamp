@@ -33,7 +33,7 @@ export default class HomeScreen extends Component{
             checkOutTime: "",
             checkInDate: "",
             checkOutDate: "",
-            infoText: "Checked out at:",
+            infoText: "Checked out since:",
             eightHourDays: {},
         }
         this.checkInTimestamp = 0
@@ -48,8 +48,19 @@ export default class HomeScreen extends Component{
         this.saveData()
 	}
 
-	loadUserSettings(){
-
+	loadUserSettings = async () => {
+        try {
+            const value = await AsyncStorage.getItem('mySettings')
+            if(value !== null) {
+                console.log("getData done")
+            }
+            else{
+				// Set standard settings
+				console.log("no settings found")
+            }
+        } catch(e) {
+            console.log("getData error")
+        }
     }
     
     saveData = async () => {
@@ -159,7 +170,7 @@ export default class HomeScreen extends Component{
 		let seconds = "0" + date.getSeconds()
         this.setState({checkInTime: hours.substr(-2) + ':' + minutes.substr(-2) + ':' + seconds.substr(-2)})
         this.setState({checkInDate: this.nameOfDay(date.getDay()) + " " + this.nameOfMonth(date.getMonth()) + " " + date.getDate() })
-		this.setState({infoText: "Checked in at:"})
+		this.setState({infoText: "Checked in since:"})
 		console.log("Started working: " + this.checkInTimestamp)
 	}
 
@@ -172,7 +183,7 @@ export default class HomeScreen extends Component{
 		let seconds = "0" + date.getSeconds()
         this.setState({checkOutTime: hours.substr(-2) + ':' + minutes.substr(-2) + ':' + seconds.substr(-2)})
         this.setState({checkOutDate: this.nameOfDay(date.getDay()) + " " + this.nameOfMonth(date.getMonth()) + " " + date.getDate() })
-		this.setState({infoText: "Checked out at:"})
+		this.setState({infoText: "Checked out since:"})
 		console.log("Stopped working: " + this.checkOutTimestamp)
         // 8 hours = 28800 sec
         let timeWorked = (this.checkOutTimestamp - this.checkInTimestamp)
@@ -204,7 +215,7 @@ export default class HomeScreen extends Component{
 					<Header>
 						<Left>
 							<NativeButton transparent onPress={() => this.props.navigation.navigate('Settings')}>
-								<Icon name="menu"	size={30} color="#fff" />
+								<Icon name="menu"	size={20} color="#fff" />
 							</NativeButton>
 						</Left>
 						<Body>
@@ -229,14 +240,29 @@ export default class HomeScreen extends Component{
                             <Text style={{alignSelf: 'center',}}>
 								{this.state.infoText}{"\n"}
 							</Text>
-                            {this.state.isWorking ? 
-                            <View>
-                                <Text style={{alignSelf: 'center', fontSize: 20, color: 'green'}}>
+                            {!this.state.isWorking ? 
+                            <View style={{flex: 1, flexDirection: 'column', alignItems: 'center'}}>
+								<View style={{flex: 1}}>
+									<Text style={{fontSize: 18}}>
+										Today: 7.29/8.00 hrs
+									</Text>
+								</View>
+								<View style={{flex: 1}}>
+								<Text style={{fontSize: 18}}>
+										This week: 11.42/40.00 hrs
+									</Text>
+								</View>
+								<View style={{flex: 1}}>
+								<Text style={{fontSize: 18}}>
+										+/-: +12.18 hrs
+									</Text>
+								</View>
+                                {/* <Text style={{alignSelf: 'center', fontSize: 20, color: 'green'}}>
                                     {this.state.checkInDate}
                                 </Text>
                                 <Text style={{alignSelf: 'center', fontSize: 60, color: 'green', fontWeight: 'bold'}}>
                                     {this.state.checkInTime}
-                                </Text>
+                                </Text> */}
                             </View>
                             :
                             <View>
