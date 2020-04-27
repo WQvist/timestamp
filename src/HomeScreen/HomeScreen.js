@@ -34,34 +34,92 @@ export default class HomeScreen extends Component{
             checkInDate: "",
             checkOutDate: "",
             infoText: "Checked out since:",
-            eightHourDays: {},
-        }
+			eightHourDays: {},
+			hoursWorked: "0",
+			minutesWorked: "00",
+		}
+		this.timer = 0
         this.checkInTimestamp = 0
-        this.checkOutTimestamp = 0
+		this.checkOutTimestamp = 0
+		this.mySettings = {}
+		this.currentState = {}	// {'isWorking': bool, 'hoursWorked': int, 'minutesWorked': int, 'checkInTime': string, 'checkInDate': string}
 	}
 
 	componentDidMount(){
-        this.getData()
+		this.loadCurrentState()
+		this.getData()
 	}
 
 	componentWillUnmount(){
-        this.saveData()
+		this.saveCurrentState()
+		this.saveData()
+	}
+
+	loadCurrentState = async () => {
+		try {
+            const value = await AsyncStorage.getItem('currentState')
+            if(value !== null) {
+				console.log("loadCurrentState done")
+				this.currentState = JSON.parse(value)
+				if(this.currentState.isWorking){
+					this.setState({
+						isWorking: this.currentState.isWorking,
+						hoursWorked: this.currentState.hoursWorked,
+						minutesWorked: this.currentState.minutesWorked,
+						checkInDate: this.currentState.checkInDate,
+						checkInDate: this.currentState.checkInDate
+					})
+				}
+				console.log("working? " + this.state.isWorking)
+            }
+            else{
+				// Set standard settings
+				console.log("loadCurrentState not found")
+            }
+        } catch(e) {
+            console.log("loadCurrentState error")
+        }
+	}
+
+	saveCurrentState = async () => {
+		if(this.state.isWorking){
+			this.currentState.isWorking = this.state.isWorking
+			this.currentState.hoursWorked = this.state.hoursWorked
+			this.currentState.minutesWorked = this.state.minutesWorked
+			this.currentState.checkInDate = this.state.checkInTime
+			this.currentState.checkInDate = this.state.checkInDate
+		}
+		else{
+			this.currentState = {}
+		}
+		try {
+			await AsyncStorage.setItem('currentState', JSON.stringify(this.currentState))
+			console.log("saveCurrentState done")
+		} catch (e) {
+			console.log("saveCurrentState error")
+		}
 	}
 
 	loadUserSettings = async () => {
         try {
             const value = await AsyncStorage.getItem('mySettings')
             if(value !== null) {
-                console.log("getData done")
+				console.log("loadUserSettings done")
+				this.mySettings = JSON.parse(value)
+				this.applySettings()
             }
             else{
 				// Set standard settings
 				console.log("no settings found")
             }
         } catch(e) {
-            console.log("getData error")
+            console.log("loadUserSettings error")
         }
-    }
+	}
+	
+	applySettings = () => {
+		
+	}
     
     saveData = async () => {
         try {
@@ -162,6 +220,7 @@ export default class HomeScreen extends Component{
 	}
 
 	startWorking = () => {
+		this.timer = setInterval(this.howLongWorked, 1000*60)	// every minute
         this.setState({isWorking: true})
 		let date = new Date()
 		this.checkInTimestamp = Math.floor(date/1000)
@@ -174,7 +233,16 @@ export default class HomeScreen extends Component{
 		console.log("Started working: " + this.checkInTimestamp)
 	}
 
+	howLongWorked = () => {
+		let date = new Date()
+		let currentTimestamp = Math.floor(date/1000)
+		let secondsWorked = currentTimestamp-this.checkInTimestamp
+		this.setState({hoursWorked: Math.floor(secondsWorked/3600)})
+		this.setState({minutesWorked: ("0" + Math.floor((secondsWorked-this.state.hoursWorked*3600)/60)).substr(-2)})
+	}
+
 	stopWorking = () => {
+		clearInterval(this.timer)
         this.setState({isWorking: false})
 		let date = new Date()
 		this.checkOutTimestamp = Math.floor(date/1000)
@@ -231,20 +299,21 @@ export default class HomeScreen extends Component{
 						<Calendar
 							onDayPress={(day) => {console.log('Press', day)}}
                             onDayLongPress={(day) => {console.log('Long press', day)}}
-                            markedDates={this.state.eightHourDays}
+							markedDates={this.state.eightHourDays}
+							showWeekNumbers={true}
 						/>
 					</View>
 					
 					<View style={{flex: 4}}>
 						<View style={{backgroundColor: 'white', flex: 0.5, marginLeft: '5%', marginRight: '5%', flexDirection: 'column', alignContent: 'space-between'}}>
                             <Text style={{alignSelf: 'center',}}>
-								{this.state.infoText}{"\n"}
+								{this.state.infoText} {this.state.checkInTime} {"\n"}
 							</Text>
-                            {!this.state.isWorking ? 
+                            {this.state.isWorking ? 
                             <View style={{flex: 1, flexDirection: 'column', alignItems: 'center'}}>
 								<View style={{flex: 1}}>
 									<Text style={{fontSize: 18}}>
-										Today: 7.29/8.00 hrs
+										Today: {this.state.hoursWorked}:{this.state.minutesWorked}/8:00 hrs
 									</Text>
 								</View>
 								<View style={{flex: 1}}>
@@ -254,7 +323,7 @@ export default class HomeScreen extends Component{
 								</View>
 								<View style={{flex: 1}}>
 								<Text style={{fontSize: 18}}>
-										+/-: +12.18 hrs
+										Flex: +12.18 hrs
 									</Text>
 								</View>
                                 {/* <Text style={{alignSelf: 'center', fontSize: 20, color: 'green'}}>

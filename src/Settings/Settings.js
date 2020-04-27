@@ -23,37 +23,90 @@ import Icon from 'react-native-vector-icons/SimpleLineIcons'
 import { Picker as WheelPicker, DatePicker } from 'react-native-wheel-datepicker'
 import Popover from 'react-native-popover-view'
 import CheckBox from '@react-native-community/checkbox'
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
+
+let date = null
 
 export default class Settings extends Component{
     constructor() {
         super()
         this.state= {
             working: false,
-            firstDayOfWeek: "key1",
             autoConnectOnWifi: false,
-            notifyEightHours: false,
+            notifyWhenFullDayWorked: false,
             lunchDuration: 0,
             lunchDurationScrollerVisibility: false,
             workingDaysCheckboxVisibility: false,
             workingDays: {
+                'monday': true, 
+                'tuesday': true, 
+                'wednesday': true, 
+                'thursday': true, 
+                'friday': true, 
+                'saturday': false, 
+                'sunday': false, },
+            notifyOnAmountOfOvertime: false,
+            showCheckInTimePicker: false,
+            showCheckOutTimePicker: false,
+            checkInHour: 0,
+            checkInMinute: 0,
+            checkOutHour: 0,
+            checkOutMinute: 0,
+        }
+    }
+
+    componentDidMount(){
+        date = Date.now() 
+    }
+
+    componentWillUnmount(){
+
+    }
+
+    loadUserSettings = async () => {
+        try {
+            const value = await AsyncStorage.getItem('mySettings')
+            if(value !== null) {
+                console.log("loadUserSettings done")
+            }
+            else{
+				// Set standard settings
+				console.log("no settings found")
+            }
+        } catch(e) {
+            console.log("loadUserSettings error")
+        }
+    }
+
+    saveUserSettings = async () => {
+        try {
+            await AsyncStorage.setItem('mySettings', JSON.stringify(this.mySettings))
+            console.log("saveUserSettings done")
+        } catch (e) {
+            console.log("saveUserSettings error")
+        }
+    }
+
+    resetToDefaultSettings = () => {
+        let settings = {
+            'autoConnectOnWifi': false,
+            'notifyWhenFullDayWorked': false,
+            'lunchDuration': 0,
+            'workingDays': {
                 'monday': false, 
                 'tuesday': false, 
                 'wednesday': false, 
                 'thursday': false, 
                 'friday': false, 
                 'saturday': false, 
-                'sunday': false, }
+                'sunday': false,
+            },
+            'notifyOnAmountOfOvertime': false
+
         }
-    }
-
-    componentDidMount(){
-    }
-
-    componentWillUnmount(){
-
     }
 
     wifiSetting = () => {
@@ -67,7 +120,7 @@ export default class Settings extends Component{
 
     notifyOnFullDaysWork = () => {
         this.setState(prevState => ({
-            notifyEightHours: !prevState.notifyEightHours
+            notifyWhenFullDayWorked: !prevState.notifyWhenFullDayWorked
         }))
     }
 
@@ -85,8 +138,64 @@ export default class Settings extends Component{
                     </Body>
                     <Right/>
                 </Header>
+                {/* Normal check-in time */}
+                <View style={[styles.settingsRectangle]}>
+                    <View style={styles.settingsTextField}>
+                        <Text style={{fontSize: 15, marginLeft: 10}}>
+                            Normal check-in time
+                        </Text>
+                    </View>
+                    {this.state.showCheckInTimePicker && (
+                        <DateTimePicker
+                            value={new Date()}
+                            mode={'time'}
+                            is24Hour={true}
+                            display="clock"
+                            onChange={(event, selectedDate) => this.setState({
+                                checkInHour: selectedDate.getHours(),
+                                checkInMinute: selectedDate.getMinutes()
+                            })}
+                        />
+                    )}
+                    <TouchableHighlight
+                        onPress={() => this.setState({showCheckInTimePicker: true})}
+                        style={{flex: 1, width: windowWidth, flexDirection: 'row', alignContent: 'flex-end'}}>
+                        <Text style={{flex: 1, fontSize: 25, alignSelf: 'center', textAlign: 'center'}}>
+                            {this.state.checkInHour}:{this.state.checkInMinute}
+                        </Text>
+                    </TouchableHighlight>
+                </View>
+                <View style={styles.divider}/>
+                {/* Normal check-out time */}
+                <View style={[styles.settingsRectangle]}>
+                    <View style={styles.settingsTextField}>
+                        <Text style={{fontSize: 15, marginLeft: 10}}>
+                            Normal check-out time
+                        </Text>
+                    </View>
+                    {this.state.showCheckOutTimePicker && (
+                        <DateTimePicker
+                            value={new Date()}
+                            mode={'time'}
+                            is24Hour={true}
+                            display="clock"
+                            onChange={(event, selectedDate) => this.setState({
+                                checkOutHour: selectedDate.getHours(),
+                                checkOutMinute: selectedDate.getMinutes()
+                            })}
+                        />
+                    )}
+                    <TouchableHighlight
+                        onPress={() => this.setState({showCheckOutTimePicker: true})}
+                        style={{flex: 1, width: windowWidth, flexDirection: 'row', alignContent: 'flex-end'}}>
+                        <Text style={{flex: 1, fontSize: 25, alignSelf: 'center', textAlign: 'center'}}>
+                            {this.state.checkOutHour}:{this.state.checkOutMinute}
+                        </Text>
+                    </TouchableHighlight>
+                </View>
+                <View style={styles.divider}/>
                 {/* First day of week */}
-                <View style={styles.settingsRectangle}>
+                {/* <View style={styles.settingsRectangle}>
                     <View style={styles.settingsTextField}>
                         <Text style={{fontSize: 15, marginLeft: 10}}>
                             First day of week
@@ -101,13 +210,13 @@ export default class Settings extends Component{
                             selectedValue={this.state.firstDayOfWeek}
                             onValueChange={(value) => this.setState({firstDayOfWeek: value})}
                         >
-                        <Picker.Item label="Mon" value="key0" />
-                        <Picker.Item label="Sun" value="key1" />
+                        <Picker.Item label="Mon" value="mon" />
+                        <Picker.Item label="Sun" value="sun" />
                     </Picker>
                 </Form>
                     </View>
                 </View>
-                <View style={styles.divider}/>
+                <View style={styles.divider}/> */}
                 {/* Auto-check in on Wifi connection */}
                 <View style={styles.settingsRectangle}>
                     <View style={styles.settingsTextField}>
@@ -130,7 +239,7 @@ export default class Settings extends Component{
                 <View style={styles.settingsRectangle}>
                     <View style={styles.settingsTextField}>
                         <Text style={{fontSize: 15, marginLeft: 10}}>
-                            Notify when 8 hours worked
+                            Notify when work is done
                         </Text>
                     </View>
                     <View style={{flex: 1, alignContent: 'flex-start'}}>
@@ -138,7 +247,7 @@ export default class Settings extends Component{
                             trackColor={{ false: "#767577", true: "#81b0ff" }}
                             ios_backgroundColor="#3e3e3e"
                             onValueChange={this.notifyOnFullDaysWork}
-                            value={this.state.notifyEightHours}
+                            value={this.state.notifyWhenFullDayWorked}
                             style={{flex: 1}}
                         />
                     </View>
