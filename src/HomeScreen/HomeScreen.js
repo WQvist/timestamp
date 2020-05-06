@@ -43,16 +43,28 @@ export default class HomeScreen extends Component{
 		this.checkOutTimestamp = 0
 		this.mySettings = {}
 		this.currentState = {}	// {'isWorking': bool, 'hoursWorked': int, 'minutesWorked': int, 'checkInTime': string, 'checkInDate': string}
+		this.workHistory = {}	// workHistory = {
+								// 		"2020-04-27": {
+								// 			checkIns: [],
+								// 			checkOuts: []
+								// 		}
+								// }
+		this.currentDay = ""	// eg. 2020-04-27
 	}
 
 	componentDidMount(){
 		this.loadCurrentState()
 		this.getData()
+		this.loadWorkHistory()
+		this.loadUserSettings()
+		let date = new Date()
+		this.currentDay = date.getFullYear() + '-' + ("0" + (date.getMonth()+1)).substr(-2) + '-' + ("0" + (date.getDate())).substr(-2)	// eg. 2020-04-27
 	}
 
 	componentWillUnmount(){
 		this.saveCurrentState()
 		this.saveData()
+		this.saveWorkHistory()
 	}
 
 	loadCurrentState = async () => {
@@ -106,19 +118,65 @@ export default class HomeScreen extends Component{
             if(value !== null) {
 				console.log("loadUserSettings done")
 				this.mySettings = JSON.parse(value)
+				console.log("mySettings: " + this.mySettings)
 				this.applySettings()
             }
             else{
-				// Set standard settings
+				this.applyDefaultSettings()
 				console.log("no settings found")
             }
         } catch(e) {
-            console.log("loadUserSettings error")
+            console.log("loadUserSettings error: " + e)
         }
+	}
+
+	applyDefaultSettings = () => {
+		this.mySettings = {
+			checkInTime: ["7", "00"],
+			checkOutTime: ["16", "00"],
+			autoConnectOnWifi: false,
+			notifyWhenFullDayWorked: false,
+			lunchDuration: 30,
+			workingDays: {
+				monday: true, 
+				tuesday: true, 
+				wednesday: true, 
+				thursday: true, 
+				friday: true, 
+				saturday: false, 
+				sunday: false,
+			}
+		}
 	}
 	
 	applySettings = () => {
-		
+		// this.mySettings = {
+        //     checkInTime: ["7", "00"],
+        //     checkOutTime: ["16", "00"],
+        //     autoConnectOnWifi: false,
+        //     notifyWhenFullDayWorked: false,
+        //     lunchDuration: 0,
+        //     workingDays: {
+        //         monday: false, 
+        //         tuesday: false, 
+        //         wednesday: false, 
+        //         thursday: false, 
+        //         friday: false, 
+        //         saturday: false, 
+        //         sunday: false,
+        //     }
+		// }
+		console.log("applySettings")
+		this.hoursInWorkday = this.mySettings.checkOutTime[0]-this.mySettings.checkOutTime[0]
+		this.minutesInWorkday = this.mySettings.checkOutTime[1]-this.mySettings.checkOutTime[1]
+		let daysToWork = 0
+		for(const day in this.mySettings.workingDays){
+			if(this.mySettings.workingDays.day){
+				daysToWork+=1
+			}
+		}
+		this.workWeekInHours = daysToWork*this.hoursInWorkday
+		console.log("workWeekInHours: " + this.workWeekInHours)
 	}
     
     saveData = async () => {
@@ -140,7 +198,28 @@ export default class HomeScreen extends Component{
         } catch(e) {
             console.log("getData error")
         }
+	}
+
+	saveWorkHistory = async () => {
+        try {
+            await AsyncStorage.setItem('workHistory', JSON.stringify(this.workHistory))
+            console.log("saveWorkHistory done")
+        } catch (e) {
+            console.log("saveWorkHistory error")
+        }
     }
+	
+	loadWorkHistory = async () => {
+        try {
+            const value = await AsyncStorage.getItem('workHistory')
+            if(value !== null) {
+                this.workHistory = JSON.parse(value)
+                console.log("loadWorkHistory done")
+        }
+        } catch(e) {
+            console.log("loadWorkHistory error")
+        }
+	}
 
 	goToSettings = (navigation ) => {
 		return (
@@ -220,10 +299,14 @@ export default class HomeScreen extends Component{
 	}
 
 	startWorking = () => {
-		this.timer = setInterval(this.howLongWorked, 1000*60)	// every minute
-        this.setState({isWorking: true})
 		let date = new Date()
+		this.timer = setInterval(this.howLongWorked, 1000*60)	// every minute
+		this.setState({isWorking: true})
 		this.checkInTimestamp = Math.floor(date/1000)
+		if(!(this.currentDay in this.workHistory)){
+			this.workHistory[this.currentDay] = {checkIns: [], checkOuts: []}
+		}
+		this.workHistory[this.currentDay].checkIns.push(this.checkInTimestamp)
 		let hours = "0" + date.getHours()
 		let minutes = "0" + date.getMinutes()
 		let seconds = "0" + date.getSeconds()
@@ -231,14 +314,27 @@ export default class HomeScreen extends Component{
         this.setState({checkInDate: this.nameOfDay(date.getDay()) + " " + this.nameOfMonth(date.getMonth()) + " " + date.getDate() })
 		this.setState({infoText: "Checked in since:"})
 		console.log("Started working: " + this.checkInTimestamp)
+		this.howLongWorked()
 	}
 
 	howLongWorked = () => {
+		let sum = 0
+		if(this.workHistory[this.currentDay].checkIns.length > 1){
+			for(let i=0; i<this.workHistory[this.currentDay].checkIns.length-1; i++){
+				// Note that last checkIn value has no corresponding checkOut value
+				sum += (this.workHistory[this.currentDay].checkOuts[i] - this.workHistory[this.currentDay].checkIns[i])
+			}
+		}
 		let date = new Date()
 		let currentTimestamp = Math.floor(date/1000)
-		let secondsWorked = currentTimestamp-this.checkInTimestamp
+		let secondsWorked = currentTimestamp-this.checkInTimestamp + sum
 		this.setState({hoursWorked: Math.floor(secondsWorked/3600)})
 		this.setState({minutesWorked: ("0" + Math.floor((secondsWorked-this.state.hoursWorked*3600)/60)).substr(-2)})
+	}
+
+	summarizeWeek = () => {
+		let date = new Date()
+		let today = date.getDay()
 	}
 
 	stopWorking = () => {
@@ -246,6 +342,7 @@ export default class HomeScreen extends Component{
         this.setState({isWorking: false})
 		let date = new Date()
 		this.checkOutTimestamp = Math.floor(date/1000)
+		this.workHistory[this.currentDay].checkOuts.push(this.checkOutTimestamp)
 		let hours = "0" + date.getHours()
 		let minutes = "0" + date.getMinutes()
 		let seconds = "0" + date.getSeconds()
@@ -253,14 +350,12 @@ export default class HomeScreen extends Component{
         this.setState({checkOutDate: this.nameOfDay(date.getDay()) + " " + this.nameOfMonth(date.getMonth()) + " " + date.getDate() })
 		this.setState({infoText: "Checked out since:"})
 		console.log("Stopped working: " + this.checkOutTimestamp)
-        // 8 hours = 28800 sec
         let timeWorked = (this.checkOutTimestamp - this.checkInTimestamp)
-        let newDay = date.getFullYear() + '-' + ("0" + (date.getMonth()+1)).substr(-2) + '-' + date.getDate()
-        if(timeWorked > 100){
+        if(timeWorked > 100){	// 8 hours = 28800 sec
             this.setState({
                 eightHourDays: {
                     ...this.state.eightHourDays,
-                    [newDay]: {selected: true, selectedColor: 'green'}
+                    [this.currentDay]: {selected: true, selectedColor: 'green'}
                 }
             })
         }
@@ -268,10 +363,14 @@ export default class HomeScreen extends Component{
             this.setState({
                 eightHourDays: {
                     ...this.state.eightHourDays,
-                    [newDay]: {selected: true, selectedColor: 'red'}
+                    [this.currentDay]: {selected: true, selectedColor: 'red'}
                 }
             })
         }
+	}
+
+	pressOnDay = (day) => {
+
 	}
 
 	render(){
@@ -295,7 +394,7 @@ export default class HomeScreen extends Component{
 							</NativeButton>
 						</Right>
 					</Header>
-					<View style={{flex: 5}}>
+					<View style={{flex: 6}}>
 						<Calendar
 							onDayPress={(day) => {console.log('Press', day)}}
                             onDayLongPress={(day) => {console.log('Long press', day)}}

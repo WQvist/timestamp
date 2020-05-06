@@ -3,10 +3,10 @@ import { View,
     Text, 
     Switch, 
     StyleSheet,
-    TouchableHighlight,
     Dimensions,
     Modal,
-    Button } from "react-native"
+    Button,
+    TouchableOpacity } from "react-native"
 import { Container, 
     Header, 
     Content, 
@@ -51,18 +51,59 @@ export default class Settings extends Component{
             notifyOnAmountOfOvertime: false,
             showCheckInTimePicker: false,
             showCheckOutTimePicker: false,
-            checkInHour: 0,
-            checkInMinute: 0,
-            checkOutHour: 0,
-            checkOutMinute: 0,
+            checkInHour: "8",
+            checkInMinute: "00",
+            checkOutHour: "16",
+            checkOutMinute: "00",
         }
+        this.mySettings = {}
+        this.showTimePicker = false
+        /*
+        mySettings = {
+            checkInTime: ["7", "00"],
+            checkOutTime: ["16", "00"],
+            autoConnectOnWifi: false,
+            notifyWhenFullDayWorked: false,
+            lunchDuration: 0,
+            workingDays: {
+                monday: false, 
+                tuesday: false, 
+                wednesday: false, 
+                thursday: false, 
+                friday: false, 
+                saturday: false, 
+                sunday: false,
+            }
+        }
+        */
     }
 
     componentDidMount(){
-        date = Date.now() 
+        date = Date.now()
+        this.mySettings = {
+            checkInTime: ["07", "00"],
+            checkOutTime: ["16", "00"],
+            autoConnectOnWifi: false,
+            notifyWhenFullDayWorked: false,
+            lunchDuration: 30,
+            workingDays: {
+                monday: true, 
+                tuesday: true, 
+                wednesday: true, 
+                thursday: true, 
+                friday: true, 
+                saturday: false, 
+                sunday: false,
+            }
+        }
+        this.loadUserSettings()
     }
 
     componentWillUnmount(){
+        this.saveUserSettings()
+    }
+
+    updateSettings = () => {
 
     }
 
@@ -70,16 +111,43 @@ export default class Settings extends Component{
         try {
             const value = await AsyncStorage.getItem('mySettings')
             if(value !== null) {
+                this.mySettings = JSON.parse(value)
                 console.log("loadUserSettings done")
+                this.applySettings()
             }
             else{
 				// Set standard settings
 				console.log("no settings found")
             }
         } catch(e) {
-            console.log("loadUserSettings error")
+            console.log("loadUserSettings error: " + e)
         }
     }
+
+    applySettings = () => {
+		// this.mySettings = {
+        //     checkInTime: ["7", "00"],
+        //     checkOutTime: ["16", "00"],
+        //     autoConnectOnWifi: false,
+        //     notifyWhenFullDayWorked: false,
+        //     lunchDuration: 0,
+        //     workingDays: {
+        //         monday: false, 
+        //         tuesday: false, 
+        //         wednesday: false, 
+        //         thursday: false, 
+        //         friday: false, 
+        //         saturday: false, 
+        //         sunday: false,
+        //     }
+		// }
+		this.setState({
+            checkInHour: this.mySettings.checkInTime[0],
+            checkInMinute: this.mySettings.checkInTime[1],
+            checkOutHour: this.mySettings.checkOutTime[0],
+            checkOutMinute: this.mySettings.checkOutTime[1]
+        })
+	}
 
     saveUserSettings = async () => {
         try {
@@ -92,20 +160,20 @@ export default class Settings extends Component{
 
     resetToDefaultSettings = () => {
         let settings = {
-            'autoConnectOnWifi': false,
-            'notifyWhenFullDayWorked': false,
-            'lunchDuration': 0,
-            'workingDays': {
-                'monday': false, 
-                'tuesday': false, 
-                'wednesday': false, 
-                'thursday': false, 
-                'friday': false, 
-                'saturday': false, 
-                'sunday': false,
-            },
-            'notifyOnAmountOfOvertime': false
-
+            checkInTime: ["7", "00"],
+            checkOutTime: ["16", "00"],
+            autoConnectOnWifi: false,
+            notifyWhenFullDayWorked: false,
+            lunchDuration: 0,
+            workingDays: {
+                monday: false, 
+                tuesday: false, 
+                wednesday: false, 
+                thursday: false, 
+                friday: false, 
+                saturday: false, 
+                sunday: false,
+            }
         }
     }
 
@@ -122,7 +190,57 @@ export default class Settings extends Component{
         this.setState(prevState => ({
             notifyWhenFullDayWorked: !prevState.notifyWhenFullDayWorked
         }))
+        this.mySettings[notifyOnFullDaysWork] = this.state.notifyOnFullDaysWork
     }
+
+    setWorkingHours = (direction, selectedDate) => {
+        try {
+            if(direction === "out"){
+                this.setState({
+                    checkOutHour: ("0"+parseInt(selectedDate.getHours())).substr(-2),
+                    checkOutMinute: ("0"+parseInt(selectedDate.getMinutes())).substr(-2)
+                })
+                this.mySettings.checkOutTime = [this.state.checkOutHour, this.state.checkOutMinute]
+                console.log("blabla: " + (new Date(((parseInt(this.state.checkOutHour)-1)*60+parseInt(this.state.checkOutMinute))*60*1000)))
+                this.setState({showCheckOutTimePicker: false})
+            }
+            else{
+                this.setState({
+                    checkInHour: ("0"+parseInt(selectedDate.getHours())).substr(-2),
+                    checkInMinute: ("0"+parseInt(selectedDate.getMinutes())).substr(-2)
+                })
+                this.mySettings.checkInTime = [this.state.checkInHour, this.state.checkInMinute]
+                this.setState({showCheckInTimePicker: false})
+            }
+        }catch(e) {
+            console.log("setWorkingHours error: " + e)
+        }
+    }
+
+    // setCheckInTime = (selectedDate) => {
+    //     try {
+    //         console.log("selectedDate: " + selectedDate)
+    //         this.setState({
+    //             checkInHour: ("0"+parseInt(selectedDate.getHours())).substr(-2),
+    //             checkInMinute: ("0"+parseInt(selectedDate.getMinutes())).substr(-2)
+    //         })
+    //         this.mySettings.checkInTime = [this.state.checkInHour, this.state.checkInMinute]
+    //     } catch(e) {
+    //         console.log("setCheckInTime error: " + e)
+    //     }
+    // }
+
+    // setCheckOutTime = (selectedDate) => {
+    //     try {
+    //         this.setState({
+    //             checkOutHour: ("0"+parseInt(selectedDate.getHours())).substr(-2),
+    //             checkOutMinute: ("0"+parseInt(selectedDate.getMinutes())).substr(-2)
+    //         })
+    //         this.mySettings.checkOutTime = [this.state.checkOutHour, this.state.checkOutMinute]
+    //     } catch(e) {
+    //         console.log("setCheckOutTime error: " + e)
+    //     }
+    // }
 
     render(){
         return(
@@ -147,23 +265,20 @@ export default class Settings extends Component{
                     </View>
                     {this.state.showCheckInTimePicker && (
                         <DateTimePicker
-                            value={new Date()}
+                            value={new Date(((parseInt(this.state.checkInHour)-1)*60+parseInt(this.state.checkInMinute))*60*1000)}
                             mode={'time'}
                             is24Hour={true}
                             display="clock"
-                            onChange={(event, selectedDate) => this.setState({
-                                checkInHour: selectedDate.getHours(),
-                                checkInMinute: selectedDate.getMinutes()
-                            })}
+                            onChange={(event, selectedDate) => {this.setState({showCheckInTimePicker: false});this.setWorkingHours("in", selectedDate)}}
                         />
                     )}
-                    <TouchableHighlight
+                    <TouchableOpacity
                         onPress={() => this.setState({showCheckInTimePicker: true})}
                         style={{flex: 1, width: windowWidth, flexDirection: 'row', alignContent: 'flex-end'}}>
                         <Text style={{flex: 1, fontSize: 25, alignSelf: 'center', textAlign: 'center'}}>
                             {this.state.checkInHour}:{this.state.checkInMinute}
                         </Text>
-                    </TouchableHighlight>
+                    </TouchableOpacity>
                 </View>
                 <View style={styles.divider}/>
                 {/* Normal check-out time */}
@@ -175,23 +290,21 @@ export default class Settings extends Component{
                     </View>
                     {this.state.showCheckOutTimePicker && (
                         <DateTimePicker
-                            value={new Date()}
+                            value={new Date(((parseInt(this.state.checkOutHour)-1)*60+parseInt(this.state.checkOutMinute))*60*1000)}
                             mode={'time'}
                             is24Hour={true}
                             display="clock"
-                            onChange={(event, selectedDate) => this.setState({
-                                checkOutHour: selectedDate.getHours(),
-                                checkOutMinute: selectedDate.getMinutes()
-                            })}
+                            onChange={(event, selectedDate) => {this.setState({showCheckOutTimePicker: false});this.setWorkingHours("out", selectedDate)}}
+
                         />
                     )}
-                    <TouchableHighlight
+                    <TouchableOpacity
                         onPress={() => this.setState({showCheckOutTimePicker: true})}
                         style={{flex: 1, width: windowWidth, flexDirection: 'row', alignContent: 'flex-end'}}>
                         <Text style={{flex: 1, fontSize: 25, alignSelf: 'center', textAlign: 'center'}}>
                             {this.state.checkOutHour}:{this.state.checkOutMinute}
                         </Text>
-                    </TouchableHighlight>
+                    </TouchableOpacity>
                 </View>
                 <View style={styles.divider}/>
                 {/* First day of week */}
@@ -273,13 +386,13 @@ export default class Settings extends Component{
                             onValueChange={value => this.setState({lunchDuration: value})}
                         />
                     </Popover>
-                    <TouchableHighlight
+                    <TouchableOpacity
                         onPress={() => this.setState({lunchDurationScrollerVisibility: true})}
                         style={{flex: 1, width: windowWidth, flexDirection: 'row', alignContent: 'flex-end'}}>
                         <Text style={{flex: 1, fontSize: 25, alignSelf: 'center', textAlign: 'center'}}>
                             {this.state.lunchDuration}
                         </Text>
-                    </TouchableHighlight>
+                    </TouchableOpacity>
                 </View>
                 <View style={styles.divider}/>
                 {/* Working days */}
@@ -393,16 +506,15 @@ export default class Settings extends Component{
                             </View>
                         </View>
                     </Modal>
-                    <TouchableHighlight
+                    <TouchableOpacity
                         onPress={() => this.setState({workingDaysCheckboxVisibility: true})}
                         style={{flex: 1, width: windowWidth, flexDirection: 'row', alignContent: 'flex-end'}}>
                         <Text style={{flex: 1, fontSize: 12, alignSelf: 'center', textAlign: 'center'}}>
                             Press to select...
                         </Text>
-                    </TouchableHighlight>
+                    </TouchableOpacity>
                 </View>
                 <View style={styles.divider}/>
-
             </Container>
         )
     }
