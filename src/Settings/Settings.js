@@ -6,7 +6,8 @@ import { View,
     Dimensions,
     Modal,
     Button,
-    TouchableOpacity } from "react-native"
+    TouchableOpacity, 
+    Alert} from "react-native"
 import { Container, 
     Header, 
     Content, 
@@ -19,7 +20,7 @@ import { Container,
     Button as NativeButton, } from "native-base"
 import { SafeAreaView } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-community/async-storage'
-import Icon from 'react-native-vector-icons/SimpleLineIcons'
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Picker as WheelPicker, DatePicker } from 'react-native-wheel-datepicker'
 import Popover from 'react-native-popover-view'
 import CheckBox from '@react-native-community/checkbox'
@@ -36,7 +37,9 @@ export default class Settings extends Component{
         this.state= {
             working: false,
             autoConnectOnWifi: false,
-            notifyWhenFullDayWorked: false,
+            // notifyWhenFullDayWorked: false,
+            remindToCheckIn: false,
+            remindToCheckOut: false,
             lunchDuration: 0,
             lunchDurationScrollerVisibility: false,
             workingDaysCheckboxVisibility: false,
@@ -55,6 +58,7 @@ export default class Settings extends Component{
             checkInMinute: "00",
             checkOutHour: "16",
             checkOutMinute: "00",
+            settingsChanged: false,
         }
         this.mySettings = {}
         this.showTimePicker = false
@@ -63,7 +67,8 @@ export default class Settings extends Component{
             checkInTime: ["7", "00"],
             checkOutTime: ["16", "00"],
             autoConnectOnWifi: false,
-            notifyWhenFullDayWorked: false,
+            remindToCheckIn: false,
+            remindToCheckOut: false,
             lunchDuration: 0,
             workingDays: {
                 monday: false, 
@@ -84,7 +89,8 @@ export default class Settings extends Component{
             checkInTime: ["07", "00"],
             checkOutTime: ["16", "00"],
             autoConnectOnWifi: false,
-            notifyWhenFullDayWorked: false,
+            remindToCheckIn: false,
+            remindToCheckOut: false,
             lunchDuration: 30,
             workingDays: {
                 monday: true, 
@@ -129,7 +135,8 @@ export default class Settings extends Component{
         //     checkInTime: ["7", "00"],
         //     checkOutTime: ["16", "00"],
         //     autoConnectOnWifi: false,
-        //     notifyWhenFullDayWorked: false,
+        //     remindToCheckIn: false,
+        //     remindToCheckOut: false,
         //     lunchDuration: 0,
         //     workingDays: {
         //         monday: false, 
@@ -163,7 +170,8 @@ export default class Settings extends Component{
             checkInTime: ["7", "00"],
             checkOutTime: ["16", "00"],
             autoConnectOnWifi: false,
-            notifyWhenFullDayWorked: false,
+            remindToCheckIn: false,
+            remindToCheckOut: false,
             lunchDuration: 0,
             workingDays: {
                 monday: false, 
@@ -184,13 +192,25 @@ export default class Settings extends Component{
         this.setState(prevState => ({
             autoConnectOnWifi: !prevState.autoConnectOnWifi
         }))
+        this.setState({settingsChanged: true})
     }
 
-    notifyOnFullDaysWork = () => {
+    checkInReminder = () => {
         this.setState(prevState => ({
-            notifyWhenFullDayWorked: !prevState.notifyWhenFullDayWorked
+            remindToCheckIn: !prevState.remindToCheckIn
         }))
-        this.mySettings[notifyOnFullDaysWork] = this.state.notifyOnFullDaysWork
+        this.mySettings.remindToCheckIn = this.state.remindToCheckIn
+        this.setState({settingsChanged: true})
+
+    }
+
+    checkOutReminder = () => {
+        this.setState(prevState => ({
+            remindToCheckOut: !prevState.remindToCheckOut
+        }))
+        this.mySettings.remindToCheckOut = this.state.remindToCheckOut
+        this.setState({settingsChanged: true})
+
     }
 
     setWorkingHours = (direction, selectedDate) => {
@@ -215,46 +235,49 @@ export default class Settings extends Component{
         }catch(e) {
             console.log("setWorkingHours error: " + e)
         }
+        this.setState({settingsChanged: true})
     }
 
-    // setCheckInTime = (selectedDate) => {
-    //     try {
-    //         console.log("selectedDate: " + selectedDate)
-    //         this.setState({
-    //             checkInHour: ("0"+parseInt(selectedDate.getHours())).substr(-2),
-    //             checkInMinute: ("0"+parseInt(selectedDate.getMinutes())).substr(-2)
-    //         })
-    //         this.mySettings.checkInTime = [this.state.checkInHour, this.state.checkInMinute]
-    //     } catch(e) {
-    //         console.log("setCheckInTime error: " + e)
-    //     }
-    // }
+    saveSettingsButton = async () => {
+        if(this.state.settingsChanged){
+            await this.saveUserSettings()
+            this.setState({settingsChanged: false})
+            // this.props.navigation.navigate('HomeScreen')
+        }
+    }
 
-    // setCheckOutTime = (selectedDate) => {
-    //     try {
-    //         this.setState({
-    //             checkOutHour: ("0"+parseInt(selectedDate.getHours())).substr(-2),
-    //             checkOutMinute: ("0"+parseInt(selectedDate.getMinutes())).substr(-2)
-    //         })
-    //         this.mySettings.checkOutTime = [this.state.checkOutHour, this.state.checkOutMinute]
-    //     } catch(e) {
-    //         console.log("setCheckOutTime error: " + e)
-    //     }
-    // }
+    remindToSaveSettings = () => {
+        Alert.alert(
+            'Save settings?',
+            '',
+            [
+                {text: 'Ignore',
+                    onPress: () => this.props.navigation.navigate('HomeScreen'),
+                    style: 'cancel',
+                },
+                {text: 'OK', onPress: () => this.saveSettingsButton()},
+            ],
+            {cancelable: false},
+        );
+    }
 
     render(){
         return(
             <Container>
                 <Header>
                     <Left>
-                        <NativeButton transparent onPress={() => this.props.navigation.navigate('HomeScreen')}>
-                            <Icon name="arrow-left"	size={15} color="#fff" />
+                        <NativeButton transparent onPress={() => this.state.settingsChanged ? this.remindToSaveSettings() : this.props.navigation.navigate('HomeScreen')}>
+                            <Icon name="chevron-left" size={30} color="#fff" />
                         </NativeButton>
                     </Left>
                     <Body>
                         <Title>Settings</Title>
                     </Body>
-                    <Right/>
+                    <Right>
+                        <NativeButton transparent onPress={() => this.saveSettingsButton()}>
+                            <Icon name="save" size={30} color={this.state.settingsChanged ? "#fff" : "#9c9c9c"} />
+                        </NativeButton>
+                    </Right>
                 </Header>
                 {/* Normal check-in time */}
                 <View style={[styles.settingsRectangle]}>
@@ -348,19 +371,37 @@ export default class Settings extends Component{
                     </View>
                 </View>
                 <View style={styles.divider}/>
-                {/* Notify when 8 hours worked */}
+                {/* Remind me to check in */}
                 <View style={styles.settingsRectangle}>
                     <View style={styles.settingsTextField}>
                         <Text style={{fontSize: 15, marginLeft: 10}}>
-                            Notify when work is done
+                            Remind me to check in
                         </Text>
                     </View>
                     <View style={{flex: 1, alignContent: 'flex-start'}}>
                         <Switch
                             trackColor={{ false: "#767577", true: "#81b0ff" }}
                             ios_backgroundColor="#3e3e3e"
-                            onValueChange={this.notifyOnFullDaysWork}
-                            value={this.state.notifyWhenFullDayWorked}
+                            onValueChange={this.checkInReminder}
+                            value={this.state.remindToCheckIn}
+                            style={{flex: 1}}
+                        />
+                    </View>
+                </View>
+                <View style={styles.divider}/>
+                {/* Remind me to check out */}
+                <View style={styles.settingsRectangle}>
+                    <View style={styles.settingsTextField}>
+                        <Text style={{fontSize: 15, marginLeft: 10}}>
+                            Remind me to check out
+                        </Text>
+                    </View>
+                    <View style={{flex: 1, alignContent: 'flex-start'}}>
+                        <Switch
+                            trackColor={{ false: "#767577", true: "#81b0ff" }}
+                            ios_backgroundColor="#3e3e3e"
+                            onValueChange={this.checkOutReminder}
+                            value={this.state.remindToCheckOut}
                             style={{flex: 1}}
                         />
                     </View>

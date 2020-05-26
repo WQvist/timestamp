@@ -18,8 +18,11 @@ import { Header,
 	Body,
 	Title,
 	Fab } from 'native-base'
-import Icon from 'react-native-vector-icons/SimpleLineIcons';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import {Dimensions} from 'react-native';
+import Modal from 'react-native-modal';
+import * as RNFS from 'react-native-fs';
+import Share from 'react-native-share';
 
 const windowWidth = Dimensions.get('window').width;
 const windowHeight = Dimensions.get('window').height;
@@ -37,6 +40,7 @@ export default class HomeScreen extends Component{
 			eightHourDays: {},
 			hoursWorked: "0",
 			minutesWorked: "00",
+			modalVisible: false,
 		}
 		this.timer = 0
         this.checkInTimestamp = 0
@@ -45,11 +49,16 @@ export default class HomeScreen extends Component{
 		this.currentState = {}	// {'isWorking': bool, 'hoursWorked': int, 'minutesWorked': int, 'checkInTime': string, 'checkInDate': string}
 		this.workHistory = {}	// workHistory = {
 								// 		"2020-04-27": {
-								// 			checkIns: [],
-								// 			checkOuts: []
+								// 			checkIns: [timestamps],
+								// 			checkOuts: [timestamps]
 								// 		}
 								// }
 		this.currentDay = ""	// eg. 2020-04-27
+		this.popupDayInfo = ""
+		this.pressOnDayDate = ""
+		this.pressOnDayCheckIn = ""
+		this.pressOnDayCheckOut = ""
+		this.pressOnDayFlexSum = ""
 	}
 
 	componentDidMount(){
@@ -210,11 +219,22 @@ export default class HomeScreen extends Component{
     }
 	
 	loadWorkHistory = async () => {
+		// workHistory = {
+		// 		"2020-04-27": {
+		// 			checkIns: [],
+		// 			checkOuts: []
+		// 		}
+		// }
         try {
             const value = await AsyncStorage.getItem('workHistory')
             if(value !== null) {
                 this.workHistory = JSON.parse(value)
-                console.log("loadWorkHistory done")
+				console.log("loadWorkHistory done")
+				console.log("this.workHistory: " + this.workHistory)
+				console.log("JSON.parse(value): " + JSON.parse(value))
+				for(day in this.workHistory){
+
+				}
         }
         } catch(e) {
             console.log("loadWorkHistory error")
@@ -307,6 +327,7 @@ export default class HomeScreen extends Component{
 			this.workHistory[this.currentDay] = {checkIns: [], checkOuts: []}
 		}
 		this.workHistory[this.currentDay].checkIns.push(this.checkInTimestamp)
+		console.log("this.checkInTimestamp: " + this.checkInTimestamp)
 		let hours = "0" + date.getHours()
 		let minutes = "0" + date.getMinutes()
 		let seconds = "0" + date.getSeconds()
@@ -369,8 +390,44 @@ export default class HomeScreen extends Component{
         }
 	}
 
-	pressOnDay = (day) => {
+	pressOnDay(visible, day) {
+		if(day){
+			this.pressOnDayDate = day.dateString
+			this.press
+			this.calculateWorkingHoursInDay(day.dateString)
+		}
+		this.setState({ modalVisible: visible });
+	}
 
+	calculateWorkingHoursInDay = (day) => {
+		let workingSum = 0
+		for(let i=0; i<this.workHistory[day].checkIns.length; i++){
+			workingSum += (this.workHistory[day].checkOuts[i] - this.workHistory[day].checkIns[i])
+		}
+		console.log("workingSum: " + workingSum)
+		return workingSum
+	}
+
+	exportWorkHistory () {
+		let path = RNFS.TemporaryDirectoryPath + "/workHistory.json"
+		
+		RNFS.writeFile(path, this.workHistory, 'utf8')
+		.then((success) => {
+			console.log('FILE WRITTEN to ' + path);
+		})
+		.catch((err) => {
+			console.log(err.message);
+		});
+
+		Share.open({
+			url: "file://" + path
+		})
+		.then((res) => {
+			console.log(res) 
+		})
+		.catch((err) => { 
+			console.log(err)
+		});
 	}
 
 	render(){
@@ -382,21 +439,21 @@ export default class HomeScreen extends Component{
 					<Header>
 						<Left>
 							<NativeButton transparent onPress={() => this.props.navigation.navigate('Settings')}>
-								<Icon name="menu"	size={20} color="#fff" />
+								<Icon name="settings"	size={20} color="#fff" />
 							</NativeButton>
 						</Left>
 						<Body>
 							<Title>Home</Title>
 						</Body>
 						<Right>
-							<NativeButton transparent onPress={() => this.props.navigation.navigate('Statistics')}>
-								<Icon name="graph"	size={30} color="#fff" />
+							<NativeButton transparent onPress={() => this.exportWorkHistory()}>
+								<Icon name="share"	size={30} color="#fff" />
 							</NativeButton>
 						</Right>
 					</Header>
 					<View style={{flex: 6}}>
 						<Calendar
-							onDayPress={(day) => {console.log('Press', day)}}
+							onDayPress={(day) => this.pressOnDay(true, day)}
                             onDayLongPress={(day) => {console.log('Long press', day)}}
 							markedDates={this.state.eightHourDays}
 							showWeekNumbers={true}
@@ -448,10 +505,25 @@ export default class HomeScreen extends Component{
 						<TouchableHighlight
 							style={[styles.fab, (this.state.isWorking) ? styles.working : styles.notWorking]}
 							onPress={() => (this.state.isWorking) ? this.stopWorking() : this.startWorking()}>
-							<Icon name={this.state.isWorking ? "logout" : "control-play"}	size={30} color="#fff" />
+							<Icon name={this.state.isWorking ? "stop" : "play-arrow"}	size={30} color="#fff" />
 						</TouchableHighlight>
 					</View>
+					<View>
+					<Modal animationType = {"none"} transparent = {true}
+						visible = {this.state.modalVisible}
+						onBackdropPress={() => {
+							this.pressOnDay(!this.state.modalVisible)}}
+						>
+						<View style = {styles.modalView}>
+							<Text style = {styles.text}>{this.pressOnDayDate}</Text>
+							<Text style = {styles.text}>Working hours: </Text>
+							<Text style = {styles.text}>Flex: </Text>
+							<Text style = {styles.text}>{this.popupDayInfo}</Text>
+						</View>
+					</Modal>
 				</View>
+				</View>
+				
 				
 			// </NavigationContainer>
 		)
@@ -463,6 +535,21 @@ const styles = StyleSheet.create({
 		borderRadius: 4,
 		borderWidth: 0.5,
 		borderColor: '#d6d7da',
+	},
+	modalView: {
+		margin: 20,
+		backgroundColor: "white",
+		borderRadius: 20,
+		padding: 35,
+		alignItems: "center",
+		shadowColor: "#000",
+		shadowOffset: {
+			width: 0,
+			height: 2
+		},
+		shadowOpacity: 0.25,
+		shadowRadius: 3.84,
+		elevation: 5
 	},
 	title: {
 		fontSize: 19,
